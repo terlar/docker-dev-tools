@@ -1,0 +1,41 @@
+#!/usr/bin/env sh
+
+[ "${TRACE}" ] && set -o xtrace
+set -o errexit -o nounset
+
+has_service() {
+	docker-compose ps --services --filter status=running | grep -q "$1"
+}
+
+service_container_id() {
+	docker-compose ps -q "$1"
+}
+
+service_copy() {
+	container_id="$(service_container_id "$1")"
+	src="$2"
+	dest="$3"
+
+	if [ -f "${src}" ]
+	then
+		docker cp "${src}" "${container_id}:${dest}"
+	else
+		docker cp "${container_id}:${src}" "${dest}"
+	fi
+}
+
+main() {
+	service="${1?service name not provided}"
+	src="${2?source name not provided}"
+	dest="${3?destination name not provided}"
+
+	if ! has_service "${service}"
+	then
+		>&2 echo "${0##*/}: service not started: ${service}"
+		return 1
+	fi
+
+	service_copy "${service}" "${src}" "${dest}"
+}
+
+main "$@"
